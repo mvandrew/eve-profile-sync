@@ -4,31 +4,15 @@ A command-line tool for synchronizing EVE Online profile settings by replacing a
 
 ## Overview
 
-EVE Profile Sync automates the process of synchronizing EVE Online profile settings across multiple user and character accounts. The tool discovers EVE profile directories, allows interactive selection of a source profile and specific user and character files, creates automatic backups, and replaces all matching configuration files within the selected profile.
+EVE Profile Sync automates the process of synchronizing EVE Online profile settings across multiple user and character accounts. Instead of manually copying configuration files, the tool provides an interactive workflow to select source files and automatically replace all matching files within a profile.
 
-The application runs as an interactive console program on Windows, guiding users through profile discovery, file selection, and synchronization operations. Selected preferences are saved to a configuration file for subsequent runs.
+The application runs as an interactive console program on Windows, guiding users through profile discovery, file selection, and synchronization operations. Selected preferences are saved to a configuration file for subsequent runs, making repeated synchronizations faster and more convenient.
 
 ## Requirements
 
-- Go 1.24 or later
 - Windows 10/11
 - EVE Online installed (for access to profile directories)
-
-## Building
-
-Build the executable using the provided batch script:
-
-```bash
-build.bat
-```
-
-Alternatively, build directly with Go:
-
-```bash
-go build -o eve-profile-sync.exe
-```
-
-The compiled binary `eve-profile-sync.exe` will be created in the project directory.
+- Pre-built binary or Go 1.24+ for building from source
 
 ## Usage
 
@@ -81,6 +65,22 @@ For example: `settings_PVESolo_20251129-1745.zip`
 
 Each backup contains a complete copy of the profile directory at the time of synchronization. Backup integrity is verified before proceeding with file replacements. If synchronization fails, the backup location is displayed for manual restoration.
 
+## Building
+
+Build the executable using the provided batch script:
+
+```bash
+build.bat
+```
+
+Alternatively, build directly with Go:
+
+```bash
+go build -o eve-profile-sync.exe
+```
+
+The compiled binary `eve-profile-sync.exe` will be created in the project directory.
+
 ## Project Structure
 
 ```
@@ -110,4 +110,3 @@ eve-profile-sync/
 - **github.com/spf13/cobra**: CLI framework for command structure and execution
 - **github.com/spf13/viper**: Configuration management with YAML support
 - **github.com/AlecAivazis/survey/v2**: Interactive terminal prompts for user input
-
