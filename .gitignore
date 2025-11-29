@@ -43,3 +43,6 @@ desktop.ini
 $RECYCLE.BIN/
 *.lnk
 .DS_Store
+
+backup/
+config.yaml
