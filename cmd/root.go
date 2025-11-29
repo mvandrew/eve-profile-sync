@@ -1,8 +1,11 @@
 package cmd
 
 import (
+	"bufio"
 	"fmt"
 	"os"
+	"strconv"
+	"strings"
 
 	"eve-profile-sync/internal/backup"
 	"eve-profile-sync/internal/config"
@@ -164,7 +167,7 @@ func discoverProfilesDirectory(savedDir string) (string, error) {
 		Help:    "Default location: C:\\Users\\{user}\\AppData\\Local\\CCP\\EVE\\c_ccp_eve_online_tq_tranquility",
 	}
 
-	if err := survey.AskOne(prompt, &userDir, survey.WithValidator(survey.Required)); err != nil {
+	if err := survey.AskOne(prompt, &userDir, survey.WithValidator(survey.Required), survey.WithStdio(os.Stdin, os.Stdout, os.Stderr)); err != nil {
 		return "", fmt.Errorf("failed to get directory from user: %w", err)
 	}
 
@@ -174,6 +177,70 @@ func discoverProfilesDirectory(savedDir string) (string, error) {
 	}
 
 	return userDir, nil
+}
+
+// selectWithFallback attempts to use survey.Select, but falls back to a numbered list
+// if the interactive terminal is not available (e.g., in GoLand debugger)
+func selectWithFallback(message string, options []string, defaultIndex int) (string, error) {
+	// Try interactive select first
+	prompt := &survey.Select{
+		Message: message,
+		Options: options,
+		Default: options[defaultIndex],
+	}
+
+	var selected string
+	err := survey.AskOne(prompt, &selected, survey.WithStdio(os.Stdin, os.Stdout, os.Stderr))
+
+	// If it works, return the result
+	if err == nil {
+		return selected, nil
+	}
+
+	// Check if error is related to terminal incompatibility
+	errStr := err.Error()
+	if strings.Contains(errStr, "Incorrect function") ||
+		strings.Contains(errStr, "terminal") ||
+		strings.Contains(errStr, "not a terminal") {
+		// Fallback to numbered list using direct stdin reading
+		fmt.Fprintf(os.Stdout, "\n%s\n", message)
+		for i, opt := range options {
+			marker := " "
+			if i == defaultIndex {
+				marker = "*"
+			}
+			fmt.Fprintf(os.Stdout, "  %s [%d] %s\n", marker, i+1, opt)
+		}
+		fmt.Fprintf(os.Stdout, "\nEnter number (1-%d) [default: %d]: ", len(options), defaultIndex+1)
+
+		// Read directly from stdin
+		reader := bufio.NewReader(os.Stdin)
+		input, readErr := reader.ReadString('\n')
+		if readErr != nil {
+			return "", fmt.Errorf("failed to read input: %w", readErr)
+		}
+
+		// Parse input
+		input = strings.TrimSpace(input)
+		if input == "" {
+			// Use default
+			return options[defaultIndex], nil
+		}
+
+		index, parseErr := strconv.Atoi(input)
+		if parseErr != nil {
+			return "", fmt.Errorf("invalid input: %s (expected a number)", input)
+		}
+
+		if index < 1 || index > len(options) {
+			return "", fmt.Errorf("invalid selection: %d (must be between 1 and %d)", index, len(options))
+		}
+
+		return options[index-1], nil
+	}
+
+	// If it's a different error, return it
+	return "", fmt.Errorf("failed to select: %w", err)
 }
 
 func selectProfile(profilesDir, savedProfile string) (*profile.Profile, error) {
@@ -196,14 +263,8 @@ func selectProfile(profilesDir, savedProfile string) (*profile.Profile, error) {
 		}
 	}
 
-	var selected string
-	prompt := &survey.Select{
-		Message: "Select profile:",
-		Options: options,
-		Default: options[defaultIndex],
-	}
-
-	if err := survey.AskOne(prompt, &selected); err != nil {
+	selected, err := selectWithFallback("Select profile:", options, defaultIndex)
+	if err != nil {
 		return nil, fmt.Errorf("failed to select profile: %w", err)
 	}
 
@@ -236,14 +297,8 @@ func selectUserFile(userFiles []profile.UserFile, savedUserID string) (*profile.
 		}
 	}
 
-	var selected string
-	prompt := &survey.Select{
-		Message: "Select user file:",
-		Options: options,
-		Default: options[defaultIndex],
-	}
-
-	if err := survey.AskOne(prompt, &selected); err != nil {
+	selected, err := selectWithFallback("Select user file:", options, defaultIndex)
+	if err != nil {
 		return nil, fmt.Errorf("failed to select user file: %w", err)
 	}
 
@@ -274,14 +329,8 @@ func selectCharacterFile(charFiles []profile.CharacterFile, savedCharID string) 
 		}
 	}
 
-	var selected string
-	prompt := &survey.Select{
-		Message: "Select character file:",
-		Options: options,
-		Default: options[defaultIndex],
-	}
-
-	if err := survey.AskOne(prompt, &selected); err != nil {
+	selected, err := selectWithFallback("Select character file:", options, defaultIndex)
+	if err != nil {
 		return nil, fmt.Errorf("failed to select character file: %w", err)
 	}
 
@@ -312,7 +361,7 @@ Proceed?`, selectedProfile.Name, selectedUserFile.ID, selectedCharFile.ID)
 		Default: false,
 	}
 
-	if err := survey.AskOne(prompt, &proceed); err != nil {
+	if err := survey.AskOne(prompt, &proceed, survey.WithStdio(os.Stdin, os.Stdout, os.Stderr)); err != nil {
 		return false
 	}
 
